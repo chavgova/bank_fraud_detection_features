@@ -1,7 +1,7 @@
 import mock
 import pandas as pd
 
-from src.main_cleaned import data_preprocessing, feature_engineering
+from src.main import data_preprocessing, feature_engineering
 
 
 # note: If what is to be tested differ significantly, have them as separate tests.
@@ -56,9 +56,9 @@ def test_data_preprocessing_sample_1():
             sample_rate = 1.0
 
         # note: Important to mock relative import. Relative to the code that is importing the object. In this
-        # note: case, the RunConfig is being imported in src/main_cleaned.py, so we need to mock according to that.
+        # note: case, the RunConfig is being imported in src/main.py, so we need to mock according to that.
         # note: See: https://docs.python.org/3/library/unittest.mock.html#where-to-patch
-        with mock.patch("src.main_cleaned.RunConfig", MockRunConfig):
+        with mock.patch("src.main.RunConfig", MockRunConfig):
             out = data_preprocessing(case["data"])
             pd.testing.assert_frame_equal(out, case["expected"], check_like=True)
 
@@ -131,6 +131,6 @@ def test_feature_engineering():
     class MockRunConfig:
         threshold_in_eur_to_consider_large_transactions = 45.0
 
-    with mock.patch("src.main_cleaned.RunConfig", MockRunConfig):
+    with mock.patch("src.main.RunConfig", MockRunConfig):
         out = feature_engineering(data)
         pd.testing.assert_frame_equal(out, expected, check_like=True)

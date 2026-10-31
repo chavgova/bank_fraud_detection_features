@@ -3,7 +3,7 @@ import tempfile
 
 import mock
 import pandas as pd
-
+import numpy as np
 from src.model_training import Model
 
 # note: As you see, we do not have unit testing for model training here. I believe testing model training function
@@ -49,3 +49,5 @@ def test_model_save_model():
                 with open(f"{tmpdir}/donono.pkl", "rb") as f:
                     model = pickle.load(f)
                     assert model == "foo"
+                    
+                

@@ -1,8 +1,13 @@
+[run]
+source = .
+omit = 
+    mlops_venv1/*
+    tests/*
+
 [report]
 include = **/*.py
 show_missing = true
 omit = tests/*
        configs/*
        **/__init__.py
-       src/main.py
 fail_under = 80
