@@ -15,8 +15,9 @@ class RunConfig:
     sample_rate: float = 1.0
     num_folds: int = 5
     threshold_in_eur_to_consider_large_transactions: float = 123.45
-
-
+    list_of_months_to_consider_for_transaction_count_feature: tuple[int, ...] = (1, 2, 5, 10)
+    random_state: int = 88
+    
 @dataclass(init=False, frozen=True)
 class ModelConfig:
     model_name: str = "alpha"

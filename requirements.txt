@@ -84,3 +84,5 @@ uvicorn==0.35.0
 Werkzeug==3.1.3
 zipp==3.23.0
 lark==1.3.1
+phonenumbers==9.0.42
+pycountry==26.2.16
