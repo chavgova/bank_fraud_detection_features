@@ -13,8 +13,9 @@ def get_z_score(data: pd.DataFrame) -> pd.Series:
     return (data["amount"] - data["amount"].mean()) / data["amount"].std()
 
 def feature_number_transactions_per_category(transaction_df: pd.DataFrame, reference_dates: pd.DatetimeIndex, 
-                                             categories: tuple[str, ...], month_windows: tuple[int, ...])-> pd.DataFrame:
-
+                                             month_windows: tuple[int, ...])-> pd.DataFrame:
+    
+    categories = tuple( sorted(transaction_df["category"].dropna().unique()))
     # this also makes missing dates to NaT
     transaction_dates =pd.to_datetime(transaction_df["chck_date"], format="mixed", errors="coerce", utc=True)   
 
@@ -71,19 +72,24 @@ def parse_phone_to_country(phone_str: str) -> str:
         parsed_phone= phonenumbers.parse(phone_str, None)
         country_code= phonenumbers.region_code_for_number(parsed_phone)
         
-        if country_code not in phonenumbers.SUPPORTED_REGIONS:
+        if country_code not in phonenumbers.SUPPORTED_REGIONS: # this can happen for satelite phones 
             return None # making sure an unsupported code does not register as known and different
         return country_code 
     except:
         return None
 
 def parse_iban_to_country(iban_str: str) -> str:
-    try: 
-        country_code = iban_str.strip()[:2].upper()  
-        country = pycountry.countries.get(alpha_2=country_code) 
-        return country_code if country else None  
-    except: 
+    if not isinstance(iban_str, str):
         return None
+    
+    iban_str = iban_str.strip().upper()
+    if not iban_str[2:4].isdigit() or len(iban_str) < 8: # alpha 3 format is not supported and not in data
+        return None
+    country_code = iban_str[:2]  
+    country = pycountry.countries.get(alpha_2=country_code) 
+    
+    return country_code if country else None  
+
 
 def feature_transaction_made_in_phone_registered_country(transaction_df: pd.DataFrame) -> pd.Series:
     transaction_country = transaction_df["cust_acc"].map(parse_iban_to_country)
@@ -94,7 +100,7 @@ def feature_transaction_made_in_phone_registered_country(transaction_df: pd.Data
     # returning 1 if both contries are known and equal
     # returning 0 if both countries are known and different
     # returning NaN if either country is unknown
-     
+    
     return (
         transaction_country.eq(phone_country)
         .astype("float64")

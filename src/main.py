@@ -12,7 +12,9 @@ from src.model_training import Model
 
 # note: #2: More meaningful name
 def data_preprocessing(transactions_df: pd.DataFrame) -> pd.DataFrame:
-    transactions_df = transactions_df.copy()
+    transactions_df = transactions_df.copy() # removed hardcoded columns 
+    transactions_df = transactions_df.sample(frac=RunConfig.sample_rate, random_state=RunConfig.random_state)
+    
     # CSV encoded strings with '. e.g. "'abc'" -> "abc"
     for col in ["payment_type", "category"]:
         transactions_df[col] = transactions_df[col].str.replace("'", "")
@@ -29,9 +31,8 @@ def data_preprocessing(transactions_df: pd.DataFrame) -> pd.DataFrame:
 # note: #5: Changed the name
 def feature_engineering(transactions_df: pd.DataFrame) -> pd.DataFrame:
     # note: #6: Made each feature group logic a function.
-    categories = tuple( sorted(transactions_df["category"].dropna().unique()))
     transaction_count_features = (feature_number_transactions_per_category(transactions_df, transactions_df["reference_date"], 
-                                categories, RunConfig.list_of_months_to_consider_for_transaction_count_feature))
+                                 RunConfig.list_of_months_to_consider_for_transaction_count_feature))
     
     features = transactions_df[["amount", "fraud", "reference_date"]].copy()
     features["z_score"] = get_z_score(transactions_df)
@@ -104,8 +105,7 @@ def main():  # pragma: no cover
 
     features= feature_engineering(transactions_data)   
 
-    features = (features.loc[features["fraud"].isin([0, 1])] 
-                .sample( frac=RunConfig.sample_rate, random_state=RunConfig.random_state))
+    features = (features.loc[features["fraud"].isin([0, 1])])
     features = features.reset_index(drop=True)
 
     results= run_experiments(features) 
