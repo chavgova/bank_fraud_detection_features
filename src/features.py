@@ -1,13 +1,12 @@
 import pandas as pd
 from sklearn.preprocessing import OneHotEncoder
 import phonenumbers
-from phonenumbers import geocoder
 import pycountry
 
 def get_encoded_features(data: pd.Series) -> pd.DataFrame:
     encoder = OneHotEncoder(sparse_output=False).fit(data.to_numpy().reshape(-1, 1))
     encoded = encoder.transform(data.to_numpy().reshape(-1, 1))
-    return pd.DataFrame(encoded, columns=encoder.get_feature_names_out())
+    return pd.DataFrame(encoded, index=data.index, columns=encoder.get_feature_names_out())
 
 
 def get_z_score(data: pd.DataFrame) -> pd.Series:
@@ -87,7 +86,7 @@ def parse_iban_to_country(iban_str: str) -> str:
         return None
 
 def feature_transaction_made_in_phone_registered_country(transaction_df: pd.DataFrame) -> pd.Series:
-    transaction_country = transaction_df["cust_account"].map(parse_iban_to_country)
+    transaction_country = transaction_df["cust_acc"].map(parse_iban_to_country)
     phone_country = transaction_df["phone"].map(parse_phone_to_country)
     
     known_countries = (transaction_country.notna() & phone_country.notna())

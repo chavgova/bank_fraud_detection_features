@@ -5,6 +5,7 @@ from dataclasses import dataclass
 class PathsConfig:
     raw_data: str = "data/trx_data.csv"  # Raw upstream data.
     model_path: str = "models/"  # Model store
+    experiment_results: str = "results/experiment_results.csv" 
 
 
 @dataclass(init=False, frozen=True)
@@ -17,6 +18,12 @@ class RunConfig:
     threshold_in_eur_to_consider_large_transactions: float = 123.45
     list_of_months_to_consider_for_transaction_count_feature: tuple[int, ...] = (1, 2, 5, 10)
     random_state: int = 88
+    experiments: tuple[tuple[str, tuple[str, ...]], ...] = (
+        ("baseline", ("baseline",)),
+        ("baseline_and_counts", ("baseline", "counts")),
+        ("baseline_and_phone", ("baseline", "phone")),
+        ("all", ("baseline", "counts", "phone")),
+    )
     
 @dataclass(init=False, frozen=True)
 class ModelConfig:
