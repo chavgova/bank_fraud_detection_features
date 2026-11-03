@@ -1,8 +1,13 @@
 import mock
 import pandas as pd
+import numpy as np
 
-from src.main import data_preprocessing, feature_engineering
+from src.main import data_preprocessing, feature_engineering, model_training, run_experiments_comparing_features
 from configs.configs import RunConfig
+from src.model_training import Model
+from unittest.mock import MagicMock, Mock
+
+
 
 # note: If what is to be tested differ significantly, have them as separate tests.
 def test_data_preprocessing_sample_1():
@@ -157,3 +162,158 @@ def test_feature_engineering():
     with mock.patch("src.main.RunConfig", MockRunConfig):
         out = feature_engineering(data)
         pd.testing.assert_frame_equal(out, expected, check_like=True)
+
+
+def test_model_training():
+    data = pd.DataFrame({ "fraud": [0, 1, 0], "amount": [100.0, 200.0, 150.0]})
+    
+    # mocking the model class and autospec checks mock vs original
+    with mock.patch("src.main.Model",autospec=True) as main_model:
+        mock_model = main_model.return_value
+        mock_model.get_cv_scores.return_value = {"test_f1": np.array([0.8, 0.9, 0.85])}
+
+        model_training(data)
+
+    main_model.assert_called_once_with()
+    
+    # we dont check .fit here as its tested in test_model_training.py   
+    # we check if each of the methods is called once with the correct data 
+    mock_model.get_cv_scores.assert_called_once()  
+    assert mock_model.get_cv_scores.call_args.args[0] is data
+    mock_model.train_model.assert_called_once()  
+    assert mock_model.train_model.call_args.args[0] is data
+    mock_model.save_model.assert_called_once_with()
+    
+def test_run_experiments_comparing_features_1exp():
+    features = pd.DataFrame({
+        "fraud": [0, 1], 
+        "amount": [0.01, 8888.0],
+        "z_score": [-1.0, 1.0],  
+    }, index=[8, 3])
+
+    original = features.copy(deep=True) 
+    experiments =(("baseline", ("baseline",)),)   
+    expected_columns = [ ["fraud", "amount", "z_score"]]
+
+    cv_results = [
+        {
+            "test_precision": np.array([1.0, 0.5]),
+            "test_recall": np.array([0.5, 1.0]),
+            "test_f1": np.array([0.88, 0.77]),
+        },
+    ]  
+
+    expected_results = pd.DataFrame({
+        "experiment": [ "baseline", "baseline"],  
+        "fold": [0, 1],
+        "precision": [ 1.0, 0.5], 
+        "recall": [0.5, 1.0],
+        "f1": [0.88, 0.77],
+    })
+     
+    
+    with (  
+        mock.patch.object(RunConfig, "num_folds", 2), 
+        mock.patch.object(RunConfig, "experiments", experiments),
+        mock.patch("src.main.Model", autospec=True) as factory): 
+        model = factory.return_value
+        model.get_cv_scores.side_effect = cv_results 
+
+        actual = run_experiments_comparing_features(features)  
+
+    assert factory.call_count ==1   
+    assert model.get_cv_scores.call_count ==1
+ 
+    for call, columns in zip( model.get_cv_scores.call_args_list, expected_columns, strict=True):
+        pd.testing.assert_frame_equal( call.args[0], features[columns])
+
+    model.train_model.assert_not_called()
+    model.save_model.assert_not_called()
+
+    pd.testing.assert_frame_equal(actual, expected_results)
+    pd.testing.assert_frame_equal(features, original)
+    
+    
+def test_run_experiments_comparing_features_4exp(): 
+    features = pd.DataFrame({
+        "fraud": [0, 1],   
+        "amount": [0.01, 8888.0], 
+        "z_score": [-1.0, 1.0],  
+        "transaction_count_cyberpunk_1_months":[0, 2],
+        "transaction_count_cyberpunk_2_months":[1, 3],   
+        "transaction_made_in_phone_registered_country":[ 1.0, float("nan") ],
+    }, index=[8, 3])
+
+    original = features.copy(deep=True)
+
+    experiments = (
+        ("baseline", ("baseline",)),
+        ("baseline_and_counts", ("baseline", "counts")),
+        ("baseline_and_phone", ("baseline", "phone")),
+        ("all", ("baseline", "counts", "phone")),
+    )
+
+    expected_columns = [
+        ["fraud", "amount", "z_score"],
+        [ "fraud", "amount", "z_score", "transaction_count_cyberpunk_1_months", "transaction_count_cyberpunk_2_months"],
+        [ "fraud", "amount", "z_score", "transaction_made_in_phone_registered_country"],
+        [ "fraud", "amount", "z_score", "transaction_count_cyberpunk_1_months", "transaction_count_cyberpunk_2_months", 
+         "transaction_made_in_phone_registered_country"],
+    ]
+
+    cv_results = [
+        {
+            "test_precision": np.array([1.0, 0.5]),  
+            "test_recall": np.array([0.5, 1.0]),
+            "test_f1": np.array([0.88, 0.77]),
+        },
+        {
+            "test_precision": np.array([1.0, 1.0]),
+            "test_recall": np.array([1.0, 0.5]),  
+            "test_f1": np.array([1.0, 0.77]),
+        },
+        {
+            "test_precision": np.array([0.5, 0.5]),
+            "test_recall": np.array([0.5, 0.5]),
+            "test_f1": np.array([0.5, 0.5]),
+        },
+        {
+            "test_precision": np.array([1.0, 1.0]),  
+            "test_recall": np.array([1.0, 1.0]),
+            "test_f1": np.array([1.0, 1.0]),  
+        },
+    ]
+
+    expected_results = pd.DataFrame({
+        "experiment": [
+            "baseline", "baseline",
+            "baseline_and_counts", "baseline_and_counts",
+            "baseline_and_phone", "baseline_and_phone",
+            "all", "all",  
+        ],
+        "fold": 4 *[0, 1],
+        "precision": [ 1.0, 0.5, 1.0, 1.0, 0.5, 0.5, 1.0, 1.0],
+        "recall": [0.5, 1.0, 1.0, 0.5, 0.5, 0.5, 1.0, 1.0],
+        "f1": [0.88, 0.77, 1.0, 0.77, 0.5, 0.5, 1.0, 1.0],  
+    })
+
+    with (  
+        mock.patch.object(RunConfig, "num_folds", 2),
+        mock.patch.object(RunConfig, "experiments", experiments),
+        mock.patch("src.main.Model", autospec=True) as factory): 
+        model = factory.return_value
+        model.get_cv_scores.side_effect = cv_results 
+
+        actual = run_experiments_comparing_features(features)
+  
+    assert factory.call_count ==4  
+    assert model.get_cv_scores.call_count ==4
+
+    for call, columns in zip( model.get_cv_scores.call_args_list, expected_columns, strict=True):
+        pd.testing.assert_frame_equal( call.args[0], features[columns])
+
+    model.train_model.assert_not_called()
+    model.save_model.assert_not_called()
+
+    pd.testing.assert_frame_equal(actual, expected_results)
+    pd.testing.assert_frame_equal(features, original)

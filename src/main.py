@@ -62,11 +62,10 @@ def model_training(data: pd.DataFrame) -> None:
     model = Model()
     print(model.get_cv_scores(data))
     model.train_model(data)
-    # note: ?? WDYT?
     model.save_model()
 
 
-def run_experiments(features: pd.DataFrame) -> pd.DataFrame:
+def run_experiments_comparing_features(features: pd.DataFrame) -> pd.DataFrame:
     count_columns = [
         column_name
         for column_name in features.columns
@@ -108,7 +107,7 @@ def main():  # pragma: no cover
     features = (features.loc[features["fraud"].isin([0, 1])])
     features = features.reset_index(drop=True)
 
-    results= run_experiments(features) 
+    results= run_experiments_comparing_features(features) 
 
     pd.DataFrame.to_csv(results, PathsConfig.experiment_results, index=False)
     print(results)
