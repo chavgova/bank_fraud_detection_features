@@ -184,6 +184,9 @@ def test_model_training():
     assert mock_model.train_model.call_args.args[0] is data
     mock_model.save_model.assert_called_once_with()
     
+    # making sure the saving is after training
+    assert [call[0] for call in mock_model.method_calls] == [ "get_cv_scores", "train_model", "save_model" ]
+    
 def test_run_experiments_comparing_features_1exp():
     features = pd.DataFrame({
         "fraud": [0, 1], 
